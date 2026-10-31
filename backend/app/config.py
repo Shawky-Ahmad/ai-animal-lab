@@ -84,8 +84,8 @@ class Settings:
     data_dir: Path
     public_port: int
     admin_port: int
-    admin_host: str
-    admin_pin: str
+    public_port: int
+    admin_port: int
     target_per_student: int
     workshop_goal: int
     max_upload_mb: int
@@ -106,11 +106,6 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    # ADMIN_PIN: when set, the instructor app requires this PIN (HTTP Basic,
-    # any username) and binds to all interfaces so a helper can reach it via
-    # the LAN or a second cloudflared tunnel. Unset -> 127.0.0.1 only.
-    admin_pin = os.environ.get("ADMIN_PIN", "").strip()
-    admin_host = os.environ.get("ADMIN_HOST") or ("0.0.0.0" if admin_pin else "127.0.0.1")
     target = _env_int("TARGET_PER_STUDENT", 35)
     return Settings(
         data_dir=Path(
@@ -118,8 +113,6 @@ def load_settings() -> Settings:
         ).expanduser(),
         public_port=_env_int("PUBLIC_PORT", 8000),
         admin_port=_env_int("ADMIN_PORT", 8001),
-        admin_host=admin_host,
-        admin_pin=admin_pin,
         target_per_student=target,
         # Projected-progress goal for the dashboard: total labels aimed for.
         # Set WORKSHOP_GOAL when you know the room; default assumes ~25 labelers.

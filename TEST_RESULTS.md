@@ -6,7 +6,37 @@ quick tunnel + real GitHub Pages deployment for the end-to-end test.
 
 ---
 
-## Automated integration suite — `backend/tests/test_api.py` — **51/51 PASS**
+## Update 3 — ADMIN_PIN support removed
+
+Removed at the user's request: helpers run their own clone, so the
+instructor tools stay localhost-only wherever the server runs and no PIN
+gate is needed. `ADMIN_PIN` / `admin_host` settings, the Basic-auth
+middleware, and the second (instructor) tunnel were all removed; default
+behavior (admin on 127.0.0.1 only) is unchanged and the full suite was
+re-run green afterward.
+
+---
+
+## Update 2 — mature UI, workshop progress bar, repo restructure
+
+* **Student site restyled** ("dark lab" theme: charcoal surfaces, Inter,
+  teal accent, matter-of-fact copy) — verified on a phone-size viewport and
+  on the live GitHub Pages deployment; full vote flow re-verified in-browser.
+* **Workshop progress bar** added to the dashboard: labels toward a
+  configurable session goal (`WORKSHOP_GOAL`, default 35 × 25 = 875) with
+  milestone ticks, plus exact catalog coverage ("photos with ≥1 label").
+  Verified with a demo instance: 84/120 labels rendered as 70% with
+  coverage 50/50. Suite check added for the default goal → **52/52 PASS**.
+* **Repo restructure**: full project now on `main` (clone + `./start.sh`),
+  student frontend on the `site` branch (what GitHub Pages serves).
+  Verified: fresh `git clone` contains everything, scripts parse, Pages
+  rebuilt from `site` and serves the new theme + live tunnel; production
+  vote re-verified end-to-end in the browser.
+* **Remote-helper access** (`ADMIN_PIN`): see section below.
+
+---
+
+## Automated integration suite — `backend/tests/test_api.py` — **52/52 PASS**
 
 Launches an isolated server (fresh temp data dir, ports 8820/8821, upload
 capped at 1 MB / 12 files) and verifies against the real HTTP API + SQLite.
@@ -116,22 +146,6 @@ present for cross-origin origins.
   `/api/admin/summary` → 404, `/api/admin/export/votes.csv` → 404,
   `POST /api/admin/upload` → 405. Uploads/exports/dashboard are reachable
   only from the laptop itself (127.0.0.1:8001).
-
-## Remote helper access (`ADMIN_PIN`) — **PASS**
-
-Verified on an isolated instance (`ADMIN_PIN=paw-2026`, ports 8842/8843,
-`--tunnel`):
-
-* Without auth / wrong PIN → `401` with a `WWW-Authenticate` Basic challenge
-  (browser shows a login box); wrong attempts are delayed (rate-limited).
-* With the PIN (any username) → `200` for `/dashboard`, `/` (upload console),
-  `/api/admin/summary`, `POST /api/admin/upload`, and CSV exports.
-* The server binds to all interfaces when a PIN is set: the dashboard is also
-  reachable from the venue Wi-Fi via the laptop's LAN IP (still PIN-gated).
-* With `--tunnel` + PIN, a **second tunnel** is started for the instructor
-  tools; through that public URL: no PIN → 401, correct PIN → 200.
-* Student public app unaffected (no auth, `/api/health` 200), and the full
-  integration suite re-ran green (52/52) in default (no-PIN) mode.
 
 ## Not covered / notes
 

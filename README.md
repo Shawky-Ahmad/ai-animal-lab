@@ -71,33 +71,23 @@ Stop everything with `Ctrl+C` in the terminal (servers + tunnel shut down).
 > ~10 s: it updates one line in `config.js` and pushes). If you want a URL
 > that never changes, use a *named* Cloudflare tunnel — see below.
 
-### Letting a helper run the dashboard when you're not there
+### Letting someone else run the session when you're not there
 
-By default the instructor tools are reachable **only on the laptop**
-(`127.0.0.1:8001`). If someone else at the venue needs the dashboard (or the
-upload console) from their own device, start the server with a PIN:
+The instructor tools are intentionally reachable **only on whichever laptop
+is running the server** (`127.0.0.1:8001`) — that's what keeps them private
+from students, on any network. Since everything is one clone plus one
+command, hand-off is simple: whoever runs the workshop clones the repo on
+their laptop and starts it:
 
 ```bash
-ADMIN_PIN=paw-2026 ./start.sh --tunnel
+git clone https://github.com/Shawky-Ahmad/ai-animal-lab.git
+cd ai-animal-lab
+./start.sh --tunnel
+./scripts/deploy-pages.sh <the printed tunnel URL>
 ```
 
-With `ADMIN_PIN` set, three things change:
-
-1. The instructor app now also accepts connections from other devices
-   (LAN + tunnels) instead of only the laptop itself.
-2. `--tunnel` opens a **second, PIN-protected tunnel URL** for the instructor
-   tools and prints it in the banner (also saved to
-   `backend/data/admin_tunnel_url.txt`). Give your helper that URL **and the
-   PIN** — their browser shows a login box; any username + the PIN as the
-   password works. Keep it to ASCII characters.
-3. Without the PIN nothing gets in — students on the venue Wi-Fi or the
-   internet see only a login prompt (wrong attempts are rate-limited).
-
-The helper can then open `https://<instructor-tunnel-url>/dashboard` from
-anywhere, or — if they're on the same venue Wi-Fi — simply
-`http://<laptop-ip>:8001/dashboard` (`ip addr` on the laptop shows the IP).
-Both paths ask for the same PIN. The student site needs no PIN and doesn't
-change. No PIN set → everything stays localhost-only, exactly as before.
+They then use `http://127.0.0.1:8001/dashboard` and `http://127.0.0.1:8001/`
+on that laptop. Nothing to maintain, nothing for students to reach.
 
 ### Using real photos instead of placeholders
 

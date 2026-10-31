@@ -108,18 +108,13 @@ def main() -> None:
     image_count = db.count_images()
 
     tunnel_proc = None
-    admin_tunnel_proc = None
     if args.tunnel:
         tunnel_proc = start_tunnel(settings.public_port, settings.data_dir,
                                    label="students")
-        if settings.admin_pin:
-            admin_tunnel_proc = start_tunnel(
-                settings.admin_port, settings.data_dir,
-                label="instructor (PIN-protected)", url_file="admin_tunnel_url.txt")
 
-    # ---- admin app: daemon thread; localhost unless ADMIN_PIN opened it up --
+    # ---- admin app: daemon thread on 127.0.0.1:$ADMIN_PORT -----------------
     admin_server = uvicorn.Server(uvicorn.Config(
-        admin_app.app, host=settings.admin_host, port=settings.admin_port,
+        admin_app.app, host="127.0.0.1", port=settings.admin_port,
         log_level="warning",
     ))
     admin_thread = threading.Thread(target=admin_server.run,
@@ -136,12 +131,7 @@ def main() -> None:
     print("=" * 66)
     print(f"  Public app : http://localhost:{settings.public_port}"
           f"   (bound 0.0.0.0:{settings.public_port})")
-    if settings.admin_pin:
-        print(f"  Admin app  : http://localhost:{settings.admin_port}/"
-              f"  (PIN required — reachable from other devices too,"
-              f" bound {settings.admin_host}:{settings.admin_port})")
-    else:
-        print(f"  Admin app  : http://127.0.0.1:{settings.admin_port}/  (upload console)")
+    print(f"  Admin app  : http://127.0.0.1:{settings.admin_port}/  (upload console)")
     print(f"               http://127.0.0.1:{settings.admin_port}/dashboard")
     print(f"  Data dir   : {settings.data_dir}")
     print(f"  Images     : {image_count}"
@@ -149,10 +139,7 @@ def main() -> None:
     print(f"  Categories : {', '.join(settings.categories)}")
     print("=" * 66)
     if args.tunnel:
-        print("  Tunnels    : starting (URLs will be printed when ready)")
-        if not settings.admin_pin:
-            print("  (tip: ADMIN_PIN=1234 ./start.sh --tunnel also exposes the")
-            print("   instructor dashboard on a second, PIN-protected URL)")
+        print("  Tunnels    : starting (URL will be printed when ready)")
     print()
     sys.stdout.flush()
 
@@ -169,8 +156,7 @@ def main() -> None:
         admin_server.should_exit = True
         admin_thread.join(timeout=5)
         stop_tunnel(tunnel_proc)
-        stop_tunnel(admin_tunnel_proc)
-        print("[shutdown] public + admin servers and tunnels stopped.")
+        print("[shutdown] public + admin servers and tunnel stopped.")
         sys.stdout.flush()
 
 

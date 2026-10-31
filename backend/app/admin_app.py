@@ -1,17 +1,12 @@
 """ADMIN FastAPI app: upload console (/), dashboard (/dashboard), /api/admin/*.
 
-Bound to 127.0.0.1 by default (never reachable off the laptop). When the
-ADMIN_PIN env var is set, the app additionally requires that PIN (HTTP Basic
-auth, any username) and run.py binds it to all interfaces so a helper can
-open the dashboard from another device via the LAN or a second tunnel.
-Binding spec: ../API_CONTRACT.md.
+Local-only (bound to 127.0.0.1 by run.py), same-origin, no CORS needed.
+Whoever runs the laptop (instructor or a helper with their own clone) is the
+only one who can reach it. Binding spec: ../API_CONTRACT.md.
 """
 from __future__ import annotations
 
-import asyncio
-import base64
 import csv
-import hmac
 import io
 import json
 import re
@@ -19,7 +14,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -27,30 +22,6 @@ from . import db
 from .config import ADMIN_FRONTEND_DIR, IMAGE_EXTENSIONS, settings
 
 app = FastAPI(title="AI Animal Lab — Admin")
-
-_ADMIN_PIN = settings.admin_pin
-_UNAUTHORIZED = {
-    "status_code": 401,
-    "headers": {"WWW-Authenticate": 'Basic realm="AI Animal Lab instructor tools", charset="UTF-8"'},
-}
-
-
-@app.middleware("http")
-async def require_pin(request: Request, call_next):
-    """Optional shared-PIN gate (HTTP Basic; any username, PIN as password)."""
-    if not _ADMIN_PIN:
-        return await call_next(request)
-    auth = request.headers.get("authorization", "")
-    if auth.startswith("Basic "):
-        try:
-            decoded = base64.b64decode(auth[6:].strip()).decode("utf-8", "replace")
-            _user, _, password = decoded.partition(":")
-            if hmac.compare_digest(password, _ADMIN_PIN):
-                return await call_next(request)
-        except Exception:
-            pass
-        await asyncio.sleep(0.3)  # slow PIN guessing down a little
-    return Response(**_UNAUTHORIZED)
 
 _PREVIEW_RE = re.compile(r"^[a-f0-9]{32}\.(jpg|jpeg|png|webp)$")
 

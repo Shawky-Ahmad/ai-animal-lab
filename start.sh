@@ -5,8 +5,7 @@
 #   ./start.sh --tunnel   also open a cloudflared quick tunnel and print the public URL
 #   ./start.sh --no-seed  don't auto-seed placeholder images into an empty database
 #
-# Environment: ADMIN_PIN (protect + expose the instructor tools),
-#              WORKSHOP_GOAL (dashboard progress target), TARGET_PER_STUDENT.
+# Environment: WORKSHOP_GOAL (dashboard progress target), TARGET_PER_STUDENT.
 # Ctrl+C stops everything (servers + tunnel).
 set -euo pipefail
 cd "$(dirname "$0")/backend"
