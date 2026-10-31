@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0e14">
+  <meta name="description" content="Label animal photos and help train an AI to recognize them.">
+  <title>AI Animal Lab</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0e14'/%3E%3Cg fill='%2335e0a6'%3E%3Cellipse cx='14.5' cy='25' rx='6' ry='8' transform='rotate(-18 14.5 25)'/%3E%3Cellipse cx='26' cy='16.5' rx='6.5' ry='8.5' transform='rotate(-6 26 16.5)'/%3E%3Cellipse cx='38' cy='16.5' rx='6.5' ry='8.5' transform='rotate(6 38 16.5)'/%3E%3Cellipse cx='49.5' cy='25' rx='6' ry='8' transform='rotate(18 49.5 25)'/%3E%3Cpath d='M32 30c8.3 0 15.5 6.1 15.5 13.4 0 5.6-4.3 9.1-9.4 8.1-2.1-.4-4.1-.9-6.1-.9s-4 .5-6.1.9c-5.1 1-9.4-2.5-9.4-8.1C16.5 36.1 23.7 30 32 30z'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Inline icon definitions (no external icon files) -->
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <symbol id="i-paw" viewBox="0 0 64 64">
+      <ellipse cx="14.5" cy="25" rx="6" ry="8" transform="rotate(-18 14.5 25)"/>
+      <ellipse cx="26" cy="16.5" rx="6.5" ry="8.5" transform="rotate(-6 26 16.5)"/>
+      <ellipse cx="38" cy="16.5" rx="6.5" ry="8.5" transform="rotate(6 38 16.5)"/>
+      <ellipse cx="49.5" cy="25" rx="6" ry="8" transform="rotate(18 49.5 25)"/>
+      <path d="M32 30c8.3 0 15.5 6.1 15.5 13.4 0 5.6-4.3 9.1-9.4 8.1-2.1-.4-4.1-.9-6.1-.9s-4 .5-6.1.9c-5.1 1-9.4-2.5-9.4-8.1C16.5 36.1 23.7 30 32 30z"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+    </symbol>
+  </svg>
+
+  <main class="app" id="app">
+    <!-- Loading (boot) -->
+    <section class="screen screen--center" id="screen-loading" hidden aria-label="Loading">
+      <span class="spinner spinner--lg" aria-hidden="true"></span>
+      <p class="loading-text">Getting things ready&hellip;</p>
+    </section>
+
+    <!-- Welcome -->
+    <section class="screen card screen--welcome" id="screen-welcome" hidden aria-labelledby="welcome-title">
+      <div class="logo-badge" aria-hidden="true"><svg class="paw"><use href="#i-paw"/></svg></div>
+      <h1 class="title" id="welcome-title">AI Animal Lab</h1>
+      <p class="lede" id="welcome-mission">Help train an AI to recognize animals.</p>
+      <p class="lede" id="welcome-empty" hidden>No photos yet &mdash; ask your instructor to add some, then come back.</p>
+      <button class="btn btn--primary btn--xl" id="btn-start" type="button">Start labeling</button>
+      <p class="footnote" id="welcome-footnote">No sign-up — your answers are anonymous.</p>
+    </section>
+
+    <!-- Labeling -->
+    <section class="screen screen--quiz" id="screen-quiz" hidden aria-labelledby="quiz-question">
+      <header class="topbar">
+        <div class="progress" id="progress" role="progressbar" aria-label="Photos labeled so far"
+             aria-valuemin="0" aria-valuemax="35" aria-valuenow="0">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="progress-count" id="progress-count" aria-hidden="true">0 / 35</span>
+      </header>
+
+      <div class="quiz-body" id="quiz-body">
+        <div class="banner" id="banner" role="alert" hidden>
+          <p class="banner-text" id="banner-text"></p>
+          <button class="btn btn--ghost-danger" id="banner-retry" type="button">Retry</button>
+          <button class="icon-btn" id="banner-close" type="button" aria-label="Dismiss message">
+            <svg class="icon"><use href="#i-close"/></svg>
+          </button>
+        </div>
+
+        <figure class="photo-card">
+          <div class="photo-loading" id="photo-loading">
+            <span class="spinner" id="photo-spinner" aria-hidden="true"></span>
+            <p class="photo-loading-text" id="photo-loading-text" hidden>Photo didn&rsquo;t load</p>
+            <button class="btn btn--soft" id="photo-retry" type="button" hidden>Try again</button>
+          </div>
+          <img class="photo" id="photo" alt="Mystery animal photo" hidden>
+          <figcaption class="saved-pill" id="saved-pill" role="status" hidden>
+            <svg class="icon icon--check" aria-hidden="true"><use href="#i-check"/></svg>
+            Saved
+          </figcaption>
+        </figure>
+
+        <h1 class="question" id="quiz-question" tabindex="-1">Which animal is this?</h1>
+        <div class="answers" id="answers"></div>
+      </div>
+    </section>
+
+    <!-- Completion -->
+    <section class="screen card screen--done" id="screen-done" hidden aria-labelledby="done-title">
+      <div class="logo-badge logo-badge--big" aria-hidden="true"><svg class="paw"><use href="#i-paw"/></svg></div>
+      <h1 class="title" id="done-title">Thank you!</h1>
+      <p class="lede" id="done-copy">You helped train the AI.</p>
+    </section>
+
+    <!-- Boot error -->
+    <section class="screen card screen--error" id="screen-error" hidden aria-labelledby="error-title">
+      <div class="logo-badge logo-badge--muted" aria-hidden="true"><svg class="paw"><use href="#i-paw"/></svg></div>
+      <h1 class="title" id="error-title">Can&rsquo;t reach the lab</h1>
+      <p class="lede" id="error-copy">We couldn&rsquo;t connect. Check your connection and try again.</p>
+      <button class="btn btn--primary btn--xl" id="btn-retry-boot" type="button">Try again</button>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
