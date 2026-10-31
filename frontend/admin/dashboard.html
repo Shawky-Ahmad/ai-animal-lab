@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Animal Lab — Live Statistics</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236366f1'/%3E%3Cg fill='white'%3E%3Ccircle cx='21' cy='23' r='6'/%3E%3Ccircle cx='32' cy='18' r='6'/%3E%3Ccircle cx='43' cy='23' r='6'/%3E%3Cpath d='M32 29c-8.5 0-15 6.4-15 12.4 0 4 3.2 6.6 7 6.6 3 0 5.6-1.6 8-1.6s5 1.6 8 1.6c3.8 0 7-2.6 7-6.6C47 35.4 40.5 29 32 29z'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><circle cx="7.2" cy="8.6" r="2.1"/><circle cx="12" cy="6.6" r="2.1"/><circle cx="16.8" cy="8.6" r="2.1"/><path d="M12 11.2c-3.9 0-6.9 3-6.9 5.7 0 1.9 1.5 3.1 3.2 3.1 1.3 0 2.4-.8 3.7-.8s2.4.8 3.7.8c1.7 0 3.2-1.2 3.2-3.1 0-2.7-3-5.7-6.9-5.7z"/></svg>
+        </span>
+        <div class="brand-text">
+          <strong>AI Animal Lab</strong>
+          <span>Live Statistics</span>
+        </div>
+      </div>
+      <nav class="topbar-actions">
+        <a class="btn ghost" href="/">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 19V5m0 0l-6 6m6-6l6 6"/></svg>
+          Upload Console
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Live Statistics</h1>
+        <p class="page-sub">Student labeling progress and agreement, refreshed automatically every 5 seconds.</p>
+      </div>
+      <div class="page-side">
+        <span class="note">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg>
+          Student labeling accuracy — no ML model trained yet
+        </span>
+        <div class="status">
+          <span id="status-dot" class="dot"></span>
+          <span id="status-text">Connecting…</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="card progress-card">
+      <div class="pc-top">
+        <div>
+          <h2 class="pc-title">Workshop progress</h2>
+          <p class="pc-sub">labels collected toward the session goal</p>
+        </div>
+        <div class="pc-pct" id="pc-pct">0%</div>
+      </div>
+      <div class="pc-bar" role="progressbar" id="pc-bar" aria-label="Workshop labeling progress"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="pc-fill" id="pc-fill"></div>
+        <span class="pc-tick" style="left:25%"></span>
+        <span class="pc-tick" style="left:50%"></span>
+        <span class="pc-tick" style="left:75%"></span>
+      </div>
+      <div class="pc-ticks-labels">
+        <span></span><span>25%</span><span>50%</span><span>75%</span>
+      </div>
+      <div class="pc-meta">
+        <span id="pc-labels"><strong>0</strong> of &mdash; labels</span>
+        <span id="pc-coverage"><strong>0%</strong> of photos have at least one label</span>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <div class="card kpi">
+        <span class="kpi-label">Total labels</span>
+        <span class="kpi-value" id="kpi-votes">0</span>
+        <span class="kpi-sub">student votes cast</span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">Students</span>
+        <span class="kpi-value" id="kpi-students">0</span>
+        <span class="kpi-sub">active labelers</span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">Images labeled</span>
+        <span class="kpi-value" id="kpi-images">0</span>
+        <span class="kpi-sub" id="kpi-images-sub">of 0 in the pool</span>
+      </div>
+      <div class="card kpi accent">
+        <span class="kpi-label">Overall student accuracy</span>
+        <span class="kpi-value" id="kpi-accuracy">—</span>
+        <span class="kpi-sub" id="kpi-accuracy-sub">waiting for the first votes</span>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="card-head">
+        <h2>Labels over time</h2>
+        <span class="hint">votes per minute</span>
+      </div>
+      <div class="chart-box">
+        <canvas id="chart-line" aria-label="Line chart of labels over time" role="img"></canvas>
+        <div class="chart-empty" id="empty-line" hidden>No labels yet</div>
+      </div>
+    </section>
+
+    <div class="charts-grid">
+      <section class="card chart-card">
+        <div class="card-head">
+          <h2>Student accuracy by category</h2>
+          <span class="hint">votes on each category's images</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="chart-bar" aria-label="Bar chart of student accuracy by category" role="img"></canvas>
+          <div class="chart-empty" id="empty-bar" hidden>No labels yet</div>
+        </div>
+      </section>
+
+      <section class="card chart-card">
+        <div class="card-head">
+          <h2>Label distribution</h2>
+          <span class="hint">what students chose</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="chart-donut" aria-label="Donut chart of label distribution" role="img"></canvas>
+          <div class="chart-empty" id="empty-donut" hidden>No labels yet</div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card export-row">
+      <span class="export-label">Data exports</span>
+      <a class="btn ghost" href="/api/admin/export/votes.csv" download>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></svg>
+        Export votes.csv
+      </a>
+      <a class="btn ghost" href="/api/admin/export/dataset.csv" download>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></svg>
+        Export dataset.csv
+      </a>
+    </section>
+
+    <section class="card table-card">
+      <div class="card-head">
+        <h2>Most disputed images</h2>
+        <span class="hint">lowest student agreement first</span>
+      </div>
+      <div class="table-scroll">
+        <table class="disputes">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Instructor category</th>
+              <th>Votes</th>
+              <th>Student choices</th>
+              <th>Accuracy</th>
+            </tr>
+          </thead>
+          <tbody id="dispute-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/assets/chart.umd.js"></script>
+  <script src="/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# runtime data (database + images) — never commit student data
+backend/data/
+# local test instances
+backend/data-test/
+# python
+backend/.venv/
+__pycache__/
+*.pyc
+# tunnel binary is downloaded by start.sh when missing (keeps the clone light)
+bin/cloudflared
+# OS noise
+.DS_Store
