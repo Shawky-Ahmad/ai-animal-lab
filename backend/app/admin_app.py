@@ -11,11 +11,13 @@ import io
 import json
 import re
 import shutil
+import threading
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               Response)
 from fastapi.staticfiles import StaticFiles
 
 from . import db
@@ -192,6 +194,201 @@ def export_dataset() -> Response:
                r["student_accuracy"]]
         )
     return _csv_response("dataset.csv", rows)
+
+
+# --------------------------------------------------------------------------
+# Unsupervised Lab (Phase 2) — page + /api/ml/*
+# Binding spec: ../../ML_CONTRACT.md. The ML modules (and through them
+# torch/transformers) are imported LAZILY inside the handlers so this app
+# boots fine without the ML stack: /api/ml/status then reports
+# ml_available=false and POST /api/ml/embed answers 503, while the
+# kmeans/data/neighbors endpoints still work from an existing
+# embeddings.npz (numpy only).
+# --------------------------------------------------------------------------
+
+
+def _ml_available() -> bool:
+    try:
+        import torch  # noqa: F401
+        import transformers  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+@app.get("/unsupervised", include_in_schema=False)
+async def unsupervised_page() -> Response:
+    return _page_or_placeholder("unsupervised.html")
+
+
+@app.get("/api/ml/status")
+def ml_status() -> dict:
+    import numpy as np
+
+    from . import embeddings, ml_state
+
+    data = embeddings.load_npz()
+    with db.get_conn() as conn:
+        rows = conn.execute("SELECT id, filename FROM images ORDER BY id").fetchall()
+    db_ids = {int(r["id"]) for r in rows}
+    if data is None or "image_ids" not in data:
+        count, stale = 0, len(db_ids)
+    else:
+        npz_ids = {int(i) for i in data["image_ids"]}
+        count = len(npz_ids)
+        # stale = ids missing from the store + dead ids + files whose bytes
+        # changed since they were embedded (same sha256 check the job uses)
+        stale = len(npz_ids - db_ids) + len(db_ids - npz_ids)
+        if count and stale == 0:
+            hashes = np.asarray(data.get("file_hashes", []))
+            stored = {int(i): str(hashes[n]) for n, i in enumerate(data["image_ids"])}
+            for r in rows:
+                image_id = int(r["id"])
+                old = stored.get(image_id)
+                if old is None:
+                    continue
+                path = db.images_dir() / str(r["filename"])
+                if not path.is_file() or embeddings.sha256_file(path) != old:
+                    stale += 1
+    return {
+        "ml_available": _ml_available(),
+        "model_loaded": embeddings.model_loaded(),
+        "embeddings": {"count": count, "images": len(db_ids), "stale": stale},
+        "job": ml_state.embed_job.snapshot(),
+    }
+
+
+def _embed_worker() -> None:
+    from . import embeddings, ml_state
+
+    try:
+        embeddings.run(progress=ml_state.embed_job.progress)
+        ml_state.embed_job.finish()
+    except Exception as exc:  # surfaced through /api/ml/status
+        ml_state.embed_job.fail(f"{type(exc).__name__}: {exc}")
+
+
+@app.post("/api/ml/embed")
+def ml_embed() -> Response:
+    from . import ml_state
+
+    if not _ml_available():
+        raise HTTPException(
+            status_code=503,
+            detail="ML stack not installed — run scripts/setup-ml.sh "
+                   "(installs CPU torch + transformers into backend/.venv)",
+        )
+    if not ml_state.embed_job.try_begin():
+        return JSONResponse(status_code=409, content={"running": True})
+    threading.Thread(target=_embed_worker, name="ml-embed", daemon=True).start()
+    return {"started": True}
+
+
+def _ml_filenames() -> dict[int, str]:
+    with db.get_conn() as conn:
+        rows = conn.execute("SELECT id, filename FROM images").fetchall()
+    return {int(r["id"]): str(r["filename"]) for r in rows}
+
+
+@app.get("/api/ml/data")
+def ml_data() -> dict:
+    import numpy as np
+
+    from . import embeddings
+
+    data = embeddings.load_npz()
+    if data is None or "image_ids" not in data or "pca" not in data:
+        return {"ids": [], "filenames": [], "pca": [], "dim": embeddings.EMBED_DIM}
+    # leak guard: NO category / original_name fields in this payload
+    ids = [int(i) for i in data["image_ids"]]
+    filenames = _ml_filenames()
+    pca = np.asarray(data["pca"])
+    return {
+        "ids": ids,
+        "filenames": [filenames.get(i, "") for i in ids],
+        "pca": [[float(x), float(y)] for x, y in pca],
+        "dim": int(embeddings.EMBED_DIM),
+    }
+
+
+def _no_embeddings_503() -> HTTPException:
+    return HTTPException(
+        status_code=503, detail="no embeddings yet — POST /api/ml/embed first"
+    )
+
+
+@app.post("/api/ml/kmeans")
+def ml_kmeans_start(payload: dict = Body(default={})) -> dict:
+    from . import ml_state
+
+    k = payload.get("k")
+    seed = payload.get("seed", ml_state.DEFAULT_SEED)
+    if isinstance(k, bool) or not isinstance(k, int) or not 2 <= k <= 8:
+        raise HTTPException(status_code=400,
+                            detail="k must be an integer in 2..8")
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise HTTPException(status_code=400, detail="seed must be an integer")
+    try:
+        return ml_state.start_run(k, seed)
+    except FileNotFoundError:
+        raise _no_embeddings_503() from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@app.post("/api/ml/kmeans/step")
+def ml_kmeans_step(payload: dict = Body(default={})) -> dict:
+    from . import ml_state
+
+    run_id = payload.get("run_id")
+    if not isinstance(run_id, str) or not run_id:
+        raise HTTPException(status_code=400, detail="run_id must be a string")
+    snapshot = ml_state.step_run(run_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail=f"unknown run '{run_id}'")
+    return snapshot
+
+
+@app.get("/api/ml/neighbors/{image_id}")
+def ml_neighbors(image_id: int, k: int = 5) -> dict:
+    from . import ml_state
+
+    try:
+        return {"image_id": image_id,
+                "neighbors": ml_state.neighbors(image_id, k)}
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"image {image_id} has no embedding",
+        ) from None
+    except FileNotFoundError:
+        raise _no_embeddings_503() from None
+
+
+@app.get("/api/ml/embedding/{image_id}")
+def ml_embedding(image_id: int) -> dict:
+    from . import ml_state
+
+    try:
+        dim, vector = ml_state.embedding_vector(image_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"image {image_id} has no embedding",
+        ) from None
+    except FileNotFoundError:
+        raise _no_embeddings_503() from None
+    return {"image_id": image_id, "dim": dim, "vector": vector}
+
+
+@app.get("/api/ml/reveal/{run_id}")
+def ml_reveal(run_id: str) -> dict:
+    from . import ml_state
+
+    result = ml_state.reveal(run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"unknown run '{run_id}'")
+    return result
 
 
 # --------------------------------------------------------------------------

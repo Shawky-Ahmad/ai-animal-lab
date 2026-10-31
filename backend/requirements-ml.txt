@@ -1,0 +1,12 @@
+# ML extras for the Unsupervised Lab (Phase 2) — see ../../ML_CONTRACT.md.
+#
+# torch is intentionally NOT listed here: the CPU build must come from
+# PyTorch's own wheel index (PyPI's default torch pulls CUDA dependencies on
+# Linux). scripts/setup-ml.sh installs it separately with:
+#
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#
+# (numpy is also in requirements.txt — repeated here so this file alone is
+# enough for everything except torch.)
+transformers>=4.45
+numpy>=1.26

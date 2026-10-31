@@ -6,6 +6,64 @@ quick tunnel + real GitHub Pages deployment for the end-to-end test.
 
 ---
 
+## Phase 2 — Unsupervised Learning Lab — **all tests PASS**
+
+Built by three sub-agents (ML backend, UI, adversarial QA) against
+`ML_CONTRACT.md`, integrated and verified by the lead.
+
+**Real model, real inference.** torch 2.15.0+cpu + transformers 5.22.1;
+`facebook/dinov2-small` downloaded from Hugging Face (~90 MB) and run locally.
+50 seeded images → 384-dim L2-normalized CLS embeddings, sha256 change
+detection, SVD PCA — all stored in `backend/data/embeddings.npz` with stable
+image ids.
+
+**ML suite — `backend/tests/test_ml.py` (written by the QA agent): 62/62 PASS**
+- Embeddings: ids == db ids, shape [50,384], norms ≈ 1, finite, hashes match,
+  re-run embeds 0 (cache), modified file → exactly 1 re-embed.
+- **Label leakage (centerpiece): after permuting every category in the
+  database, K-means assignments were bit-identical at iteration 0 and at
+  convergence** (they must not depend on labels), while reveal stats flipped —
+  proving categories touch only the reveal endpoint. Source grep: no
+  "category"/"db"/"sqlite" in `ml_kmeans.py`; `/api/ml/data` payload has no
+  category/original_name; UI shows "Image #id" only until Reveal.
+- Real Lloyd iterations: inertia non-increasing at every step; converged runs
+  are no-ops; convergence = a genuine fixed point (independently recomputed).
+- Determinism: same (k, seed) twice → identical assignments.
+- Different K → different partition (k=2 vs k=5, structure compared).
+- Neighbors: endpoint top-5 == independent cosine recompute from the npz.
+- Reveal math: distributions sum to cluster sizes; purity/overall purity
+  recomputed independently.
+- Validation: k∉2..8 → 400; unknown ids/runs → 404; concurrent embed → 409.
+- Works without torch installed (numpy-only endpoints), 503 with setup hint
+  for the embed job.
+
+**QA challenge found and fixed a real bug (QA-1):** the original `kmeans_step`
+re-assigned against the *same* centroids the start had already used, so every
+run claimed CONVERGED after one fictional step (observed live as
+"Iteration 1 · moved 0 dots"). Fixed to the standard update→re-assign Lloyd
+order and proven on overlapping synthetic data where the old code stopped
+12.6% above true Lloyd inertia with 28/200 points still movable. A UI
+hardening fix rejects assignment snapshots that don't match the loaded
+dataset size.
+
+**Browser verification (real page, real model):**
+- A: heatmap renders the selected photo's 384 values; NN panel shows the 5
+  most-similar cats at 98.7%–97.3% cosine for a cat photo (genuine
+  similarity); "Image #id" labels only, no categories.
+- B: K=5 start → 5 visibly separated groups in PCA space, centroids marked;
+  step/auto-play update colors only ("Dot positions are fixed" caption);
+  K=2 re-clusters genuinely (inertia 14 vs 2.2, fish group split out).
+- C: clicking a cluster chip shows that cluster's 10 photos (all rabbits for
+  the rabbit cluster) with counts and no animal names.
+- D: reveal shows per-cluster stacked category bars, purity 100% ×5 on the
+  placeholder set, overall purity 100%, with the "K-means never saw these
+  labels" note.
+
+**Existing suite after integration: 53/53 PASS** (`test_api.py`, one
+data-dependent check now additionally triggers on this dataset).
+
+---
+
 ## Update 3 — ADMIN_PIN support removed
 
 Removed at the user's request: helpers run their own clone, so the

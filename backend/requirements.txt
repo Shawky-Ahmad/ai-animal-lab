@@ -3,3 +3,4 @@ uvicorn>=0.30
 python-multipart>=0.0.9
 pillow>=10.0
 requests>=2.31
+numpy>=1.26

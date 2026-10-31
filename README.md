@@ -135,6 +135,54 @@ student; votes are never overwritten.
 
 ---
 
+## Phase 2 — Unsupervised Learning Lab (projector demo)
+
+An interactive demo for the **start** of the workshop: the model looks at the
+photos *without any labels* and finds structure on its own. Runs entirely on
+the instructor laptop at **http://127.0.0.1:8001/unsupervised**.
+
+Four sections:
+
+- **A · Image Features** — pick a photo, see its 384-number DINOv2 embedding
+  as a heatmap and its 5 nearest-neighbor photos by embedding similarity.
+  Makes the point that feature dimensions have no human names.
+- **B · Live Clustering** — real K-means over the 384-dim embeddings,
+  step-by-step or auto-play, K = 2–8. Dots sit at fixed 2-D PCA positions;
+  only their colors change as the algorithm reassigns them.
+- **C · Explore Clusters** — click any dot or cluster to see every photo that
+  ended up together (no animal names shown).
+- **D · Reveal Answers** — overlay the instructor's true categories: per-cluster
+  distribution, cluster purity, mixed clusters. The clustering never sees
+  these labels — overlap means the groups genuinely look alike.
+
+### One-time setup (before the workshop, internet needed once)
+
+```bash
+bash scripts/setup-ml.sh                                # torch (CPU) + transformers
+cd backend && ../backend/.venv/bin/python -m app.embeddings   # or the button on the page
+```
+
+The first run downloads `facebook/dinov2-small` (~90 MB) and embeds every
+image in the database into `backend/data/embeddings.npz` (stable image ids +
+sha256 change detection + PCA). After that everything works **offline**.
+Re-run the same command (or click "Compute / update embeddings" on the page)
+whenever you add photos — only new/changed images are embedded. CPU is fine
+(~50 images/minute; GPU is used automatically if present).
+
+### Teaching flow
+
+1. Students watch B: start K-means with K=2 (everything splits in two), then
+   K=5 — "is five the right number? let's look" → C to inspect a cluster →
+   D to reveal how close the machine got to the real categories.
+2. Reset and try K=3 or K=8 to show the algorithm has no opinion about the
+   "right" number of groups.
+3. The reveal explicitly states K-means never saw the labels — purity is a
+   descriptive statistic, not an accuracy.
+
+ML dependencies are separate (`backend/requirements-ml.txt`); the rest of the
+lab works without them, and `/unsupervised` shows the setup command if they
+are missing.
+
 ## Data & exports (after the workshop)
 
 Buttons on the dashboard, or directly:
